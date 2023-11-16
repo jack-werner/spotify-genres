@@ -18,16 +18,24 @@ spotify = spotipy.Spotify(
 genres = spotify.recommendation_genre_seeds().get("genres")
 
 # get playlists
+print("getting playlists")
 playlists = []
 for genre in genres:
-    playlist_results = spotify.search(q=genre, limit=50, type="playlist")
-    if playlist_results:
-        playlists += playlist_results.get("playlists").get("items")
+    print(genre)
+    search_results = spotify.search(q=genre, limit=50, type="playlist")
+    if search_results:
+        playlist_items = search_results.get("playlists").get("items")
+        playlists += [{**i, "genre": genre} for i in playlist_items]
+
+print(playlists[0].keys())
 
 playlist_ids = [p.get("id") for p in playlists]
 
 
 # get tracks from playlists
+print("getting tracks from playlists")
+
+
 def get_playlists_tracks(playlist_id, total, limit=100):
     playlist_items = []
     offset = 0

@@ -9,20 +9,11 @@ album_artists = []
 # track_genres = []
 
 # this is where we need to basically get everything into our data model I think? atleast we need to deduplicate stuff
-# df = pd.read_json("outputs/tracks.json")
-
-# df.head()
-# df.columns
-
-# df_tracks = pd.json_normalize(df, "track")
 
 # process tracks
 
 with open("outputs/tracks.json", "r") as file:
     tracks = json.load(file)
-
-# actual_tracks = [i.get("track") for i in tracks if i.get("track")]
-# actual_tracks[0].keys()
 
 df_tracks = pd.json_normalize(tracks)
 df_tracks.columns
@@ -93,14 +84,74 @@ top_columns = [
 
 df_features = df_features[top_columns]
 
-# rename id to track_id
-# df_features = df_features.rename(columns={"id": "track_id"})
-
-# join tracks and analysis together
-
-df_tracks_and_features = df_tracks_new.merge(df_features, on="id")
-df_tracks_and_features.head()
 
 # actually were just gonna add all the analysis features to the track table because
 # its only relation is to the track and contains all the metrics. without doing this
 # tracks don't have manyfacts and the analysis doesn't have much reason for existing
+
+# join tracks and analysis together
+
+df_tracks_and_features = df_tracks_new.merge(df_features, on="id").drop_duplicates()
+df_tracks_and_features.head()
+
+
+# get artist data
+with open("outputs/artists.json", "r") as file:
+    artists = json.load(file)
+
+df_artists = pd.json_normalize(artists)
+
+df_artists.columns
+
+top_columns = [
+    "id",
+    "name",
+    "popularity",
+    "followers.total",
+]
+
+df_artists = df_artists[top_columns]
+df_artists = df_artists.rename(columns={"followers.total": "followers"})
+df_artists.head()
+
+
+# get album data
+
+with open("outputs/albums.json", "r") as file:
+    albums = json.load(file)
+
+df_albums = pd.json_normalize(albums)
+
+df_albums.columns
+
+album_columns = [
+    "id",
+    "name",
+    "type",
+    "release_date",
+    "release_date_precision",
+    "label",
+]
+
+
+df_albums = df_albums[album_columns]
+
+# to impute the dates for all of these so that it is easier to work with,
+# were gonna write a little apply function
+
+# df_albums[df_albums["release_date_precision"] == "year"].head()
+
+
+def handle_dates(row):
+    if row["release_date_precision"] == "year":
+        return f"{row['release_date']}-01-01"
+    elif row["release_date_precision"] == "month":
+        return f"{row['release_date']}-01"
+    else:
+        return row["release_date"]
+
+
+df_albums["release_date"] = df_albums.apply(handle_dates, axis=1)
+df_albums = df_albums.drop(columns=["release_date_precision"])
+
+# TODO - cast dates to dates and other columns to better datatypes
