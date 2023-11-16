@@ -2,4 +2,6 @@ venv
 .DS_Store
 .env
 .cache
+old_outputs
+final_outputs
 outputs

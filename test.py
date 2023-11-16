@@ -91,11 +91,11 @@ for playlist_id in playlist_ids:
 
 
 # going to have to iterate through the track items so let's take a look at what that looks like -- this should be its own function
-playlist_id = playlists[0].get("id")
-total_tracks = playlists[0].get("tracks").get("total")
-playlist_tracks = []
-offset = 0
-limit = 100
+# playlist_id = playlists[0].get("id")
+# total_tracks = playlists[0].get("tracks").get("total")
+# playlist_tracks = []
+# offset = 0
+# limit = 100
 # going to store what I think the length of playlist tracks should be just so that
 # incase spotify has trouble retrieving a track, we don't infinite loop
 # while offset < total_tracks:
@@ -419,3 +419,12 @@ tracks[0].keys()
 tracks[0].get("track").keys()
 
 playlist_tracks[0].keys()
+
+
+###########
+playlist = playlists[0]
+new_tracks = get_playlists_tracks(
+    playlist.get("id"), playlist.get("tracks").get("total")
+)
+
+new_tracks[0].keys()
