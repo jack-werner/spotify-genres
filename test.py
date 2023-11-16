@@ -98,18 +98,18 @@ offset = 0
 limit = 100
 # going to store what I think the length of playlist tracks should be just so that
 # incase spotify has trouble retrieving a track, we don't infinite loop
-while offset < total_tracks:
-    print(offset)
-    track_results = spotify.playlist_items(
-        playlist_id=playlist_ids[0],
-        additional_types=["track"],
-        limit=limit,
-        offset=offset,
-    )
-    if track_results:
-        # TODO something to handle rate limiting in here
-        playlist_tracks += track_results.get("items")
-    offset += limit
+# while offset < total_tracks:
+#     print(offset)
+#     track_results = spotify.playlist_items(
+#         playlist_id=playlist_ids[0],
+#         additional_types=["track"],
+#         limit=limit,
+#         offset=offset,
+#     )
+#     if track_results:
+#         # TODO something to handle rate limiting in here
+#         playlist_tracks += track_results.get("items")
+#     offset += limit
 
 len(playlist_tracks)
 playlist_tracks[0]
@@ -131,7 +131,9 @@ def get_playlists_tracks(playlist_id, total, limit=100):
             playlist_tracks += track_results.get("items")
         offset += limit
 
-    return playlist_tracks
+    return [{**i, "playlist_id": playlist_id} for i in playlist_tracks]
+
+    # return playlist_tracks
 
 
 playlist_tracks = get_playlists_tracks(
@@ -140,7 +142,14 @@ playlist_tracks = get_playlists_tracks(
     limit=100,
 )
 
+playlist_tracks[0].keys()
+
+playlist_tracks_w_id = [{**i, "playlist_id": "asdfsdfsdf"} for i in playlist_tracks]
+playlist_tracks_w_id[-1].keys()
+
 # ok now get all the tracks.
+
+len(playlists)
 
 start = time.perf_counter()
 tracks = []
@@ -405,3 +414,8 @@ I think we should be able to put each genre into a lambda to scale this out. can
 
 
 """
+
+tracks[0].keys()
+tracks[0].get("track").keys()
+
+playlist_tracks[0].keys()
