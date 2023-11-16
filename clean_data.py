@@ -33,21 +33,22 @@ top_columns = [
     "popularity",
     "playlist_id",
     "album.id",
-    "artists.id",
     "external_ids.isrc",
 ]
 
+
+df_tracks_new = df_tracks[top_columns]
+df_tracks_new.head()
+
+
+# get track_artists relationship
 df_exploded = df_tracks[["artists", "id"]].explode(column="artists")
-df_exploded.head(10)
-
 artist_ids = df_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
-
-len(artist_ids)
-
 df_exploded["artists"] = artist_ids
 df_exploded.columns = ["artist_id", "track_id"]
 tracks_artists = df_exploded
 tracks_artists.head()
+
 
 # sanity check that this relationship makes sense -=- TODO actually drop duplicates here
 # len(tracks_artists.drop_duplicates())
@@ -88,13 +89,17 @@ top_columns = [
     "time_signature",
     "valence",
     "duration_ms",
-    "track_href",
 ]
 
 df_features = df_features[top_columns]
 
 # rename id to track_id
-df_features = df_features.rename(columns={"id": "track_id"})
+# df_features = df_features.rename(columns={"id": "track_id"})
+
+# join tracks and analysis together
+
+df_tracks_and_features = df_tracks_new.merge(df_features, on="id")
+df_tracks_and_features.head()
 
 # actually were just gonna add all the analysis features to the track table because
 # its only relation is to the track and contains all the metrics. without doing this
