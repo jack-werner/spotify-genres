@@ -136,6 +136,24 @@ album_columns = [
 
 df_albums = df_albums[album_columns]
 
+
+# explode the artists thing like we did for tracks
+
+df_albums_exploded = df_albums[["artists", "id"]].explode(column="artists")
+artist_ids = (
+    df_albums_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
+)
+df_albums_exploded["artists"] = artist_ids
+df_albums_exploded.columns = ["artist_id", "album_id"]
+album_artists = df_albums_exploded
+album_artists.head()
+
+# len(album_artists['artist_id'].unique())
+# len(album_artists['album_id'].unique())
+
+# album_artists.groupby('album_id').count().reset_index().sort_values('artist_id', ascending=False)
+
+
 # to impute the dates for all of these so that it is easier to work with,
 # were gonna write a little apply function
 
@@ -155,3 +173,9 @@ df_albums["release_date"] = df_albums.apply(handle_dates, axis=1)
 df_albums = df_albums.drop(columns=["release_date_precision"])
 
 # TODO - cast dates to dates and other columns to better datatypes
+
+
+# handle playlists
+
+
+# genre
