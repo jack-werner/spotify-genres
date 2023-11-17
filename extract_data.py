@@ -11,12 +11,13 @@ load_dotenv()
 output_path = "final_outputs"
 
 # get genres
-spotify = spotipy.Spotify(
-    auth_manager=SpotifyClientCredentials(
-        client_id=os.environ.get("CLIENT_ID"),
-        client_secret=os.environ.get("CLIENT_SECRET"),
-    )
+auth = SpotifyClientCredentials(
+    client_id=os.environ.get("CLIENT_ID"),
+    client_secret=os.environ.get("CLIENT_SECRET"),
 )
+spotify = spotipy.Spotify(auth_manager=auth)
+token = auth.get_access_token(as_dict=False)
+
 genres = spotify.recommendation_genre_seeds().get("genres")
 
 # get playlists
@@ -28,6 +29,7 @@ for genre in genres:
     if search_results:
         playlist_items = search_results.get("playlists").get("items")
         playlists += [{**i, "genre": genre} for i in playlist_items]
+
 
 # print(playlists[0].keys())
 
@@ -43,40 +45,45 @@ with open(f"{output_path}/playlists.json", "w", encoding="utf-8") as file:
 print("getting tracks from playlists")
 
 
-# def get_playlist_items(playlist_id, token):
-#     url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
-#     response = requests.get(
-#         url,
-#         headers={"Authorization": f"Bearer {token}"},
-#     )
+def get_playlist_items(playlist_id, token):
+    url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+    response = requests.get(
+        url,
+        params={"additional-types": "tracks"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
-#     while response.status_code == 429:
-#         wait_time = response.headers.get("")
+    while response.status_code == 429:
+        print("rate limit")
+        wait_time = response.headers.get("retry-after")
+        print("waiting", wait_time)
+        time.sleep(1 + int(wait_time))
 
-#     if response.ok:
-#         return response.json()
+    if response.ok:
+        return response.json()
 
 
-# def get_playlists_tracks_api(playlist_id, total, limit=100):
-#     playlist_items = []
-#     offset = 0
-#     while offset < total:
-#         print(offset)
-#         track_results = spotify.playlist_items(
-#             playlist_id=playlist_id,
-#             additional_types=["track"],
-#             limit=limit,
-#             offset=offset,
-#         )
-#         if track_results:
-#             # TODO something to handle rate limiting in here
-#             playlist_items += track_results.get("items")
-#         offset += limit
+def get_playlists_tracks_api(token, playlist_id, total, limit=100):
+    playlist_items = []
+    offset = 0
+    while offset < total:
+        print(offset)
+        # track_results = spotify.playlist_items(
+        #     playlist_id=playlist_id,
+        #     additional_types=["track"],
+        #     limit=limit,
+        #     offset=offset,
+        # )
+        track_results = get_playlist_items(playlist_id, token)
+        if track_results:
+            # TODO something to handle rate limiting in here
+            playlist_items += track_results.get("items")
+        offset += limit
 
-#     # don't need data around when the tracks were added to the playlist
-#     playlist_tracks = [i.get("track") for i in playlist_items if i.get("track")]
+    # don't need data around when the tracks were added to the playlist
+    playlist_tracks = [i.get("track") for i in playlist_items if i.get("track")]
 
-#     return [{**i, "playlist_id": playlist_id} for i in playlist_tracks]
+    return [{**i, "playlist_id": playlist_id} for i in playlist_tracks]
 
 
 def get_playlists_tracks(playlist_id, total, limit=100):
@@ -109,7 +116,9 @@ for i, playlist in enumerate(playlists):
     playlist_id = playlist.get("id")
     number_tracks = playlist.get("tracks").get("total")
     print("total_tracks", number_tracks)
-    tracks += get_playlists_tracks(playlist_id, number_tracks, 100)
+    # tracks += get_playlists_tracks(playlist_id, number_tracks, 100)
+    tracks += get_playlists_tracks_api(token, playlist_id, number_tracks, 100)
+    time.sleep(1)  # to avoid running into rate limit issues
 
 end = time.perf_counter()
 print("duration", end - start)

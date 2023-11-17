@@ -236,13 +236,12 @@ dict(response.headers).keys()
 
 response.status_code
 
+response.headers
+response.headers["retry-after"]
+
 response = requests.get(
     f"https://api.spotify.com/v1/audio-features/{tracks[0].get('id')}",
-    # params={
-    #     'q': q,
-    #     'type': 'playlist',
-    #     'limit': limit
-    # },
+    params={"limit": limit},
     headers={"Authorization": f"Bearer {token}"},
 )
 
