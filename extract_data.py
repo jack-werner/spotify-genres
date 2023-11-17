@@ -87,6 +87,8 @@ def handle_playlist_items(playlist_id, token):
             )
             # spotify = spotipy.Spotify(auth_manager=auth)
             token = auth.get_access_token(as_dict=False)
+        elif response.status_code == 404:
+            return None
         else:
             raise requests.exceptions.HTTPError(response.text)
         response = get_playlist_items(playlist_id, token)
@@ -100,12 +102,6 @@ def get_playlists_tracks_api(token, playlist_id, total, limit=100):
     offset = 0
     while offset < total:
         print(offset)
-        # track_results = spotify.playlist_items(
-        #     playlist_id=playlist_id,
-        #     additional_types=["track"],
-        #     limit=limit,
-        #     offset=offset,
-        # )
         track_results = handle_playlist_items(playlist_id, token)
         if track_results:
             # TODO something to handle rate limiting in here
@@ -158,10 +154,10 @@ print("tracks", len(tracks))
 
 ### TEMP ####
 ## continuing to get tracks from the playlists
-continued_tracks = tracks.copy()
+# continued_tracks = tracks.copy()
 
 start = time.perf_counter()
-for i, playlist in enumerate(playlists[1367:]):
+for i, playlist in enumerate(playlists[1367 + 597 + 650 :]):
     print("playlist", i)
 
     playlist_id = playlist.get("id")
@@ -174,13 +170,18 @@ for i, playlist in enumerate(playlists[1367:]):
 
 end = time.perf_counter()
 print("duration", end - start)
-print("tracks", len(tracks))
+# print("tracks", len(tracks))
+print("tracks", len(continued_tracks))
+
+tracks = continued_tracks.copy()
 
 
 # save tracks
 with open(f"{output_path}/tracks.json", "w", encoding="utf-8") as file:
-    # with open(f"checkpoint/tracks.json", "w", encoding="utf-8") as file:
     json.dump(tracks, file)
+
+with open(f"checkpoint/tracks.json", "w", encoding="utf-8") as file:
+    json.dump(continued_tracks, file)
 
 
 track_ids = [i.get("id") for i in tracks if i.get("id")]
@@ -203,6 +204,8 @@ def get_all_track_features(track_ids, limit):
             features = spotify.audio_features(id_chunk)
             track_features += features
         offset += limit
+        if offset % 1000 == 0:
+            time.sleep(1)
 
     return track_features
 

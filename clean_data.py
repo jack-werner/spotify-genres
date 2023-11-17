@@ -3,16 +3,7 @@ import numpy
 import json
 import requests
 
-# all the relationship things we need to take care of
-track_artists = []
-track_playlists = []
-album_artists = []
-# track_genres = []
-
-# this is where we need to basically get everything into our data model I think? atleast we need to deduplicate stuff
-
 # process tracks
-
 with open("outputs/tracks.json", "r") as file:
     tracks = json.load(file)
 
@@ -29,40 +20,32 @@ track_columns = [
 ]
 
 
-df_tracks_new = df_tracks[track_columns]
-df_tracks_new.head()
-
+df_tracks = df_tracks[track_columns]
+df_tracks = df_tracks.rename(
+    columns={"album.id": "album_id", "external_ids.isrc": "isrc"}
+)
 
 # get track_artists relationship
-df_exploded = df_tracks[["artists", "id"]].explode(column="artists")
-artist_ids = df_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
-df_exploded["artists"] = artist_ids
-df_exploded.columns = ["artist_id", "track_id"]
-tracks_artists = df_exploded
-tracks_artists.head()
+df_tracks_exploded = df_tracks[["artists", "id"]].explode(column="artists")
+artist_ids = (
+    df_tracks_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
+)
+df_tracks_exploded["artists"] = artist_ids
+df_tracks_exploded.columns = ["artist_id", "track_id"]
+tracks_artists = df_tracks_exploded.drop_duplicates().dropna()
+
+# TODO -- save track- artists
 
 # get tracks_playlists relationship
 df_tracks[["id", "playlist_id"]].head()
-df_tracks_playlists = df_tracks[["id", "playlist_id"]].drop_duplicates()
+df_tracks_playlists = df_tracks[["id", "playlist_id"]].drop_duplicates().dropna()
 df_tracks_playlists.columns = ["track_id", "playlist_id"]
 
 
-# sanity check that this relationship makes sense -=- TODO actually drop duplicates here
-# len(tracks_artists.drop_duplicates())
-# len(tracks_artists['track_id'].unique())
+# TODO -- save tracks_playlists
 
-# track_artists = df_tracks['artists'][0]
-# df_tracks['artists'].map(lambda x: [x.get('id')])
-# df_tracks.shape
-
-# json_norm = list(df_tracks[['artists', 'id']].apply(pd.json_normalize))
-# len(json_norm)
-# df_artists = pd.concat(json_norm)
-# df_artists.shape
-# df_artists.columns
-
-
-# df_artists = pd.json_normalize(df_tracks[['artists', 'id']])
+# drop playlist id now that we have the edge table? and drop duplicates for tracks
+df_tracks = df_tracks.drop(columns=["playlist_id"]).drop_duplicates()
 
 
 # process track analysises
@@ -70,8 +53,7 @@ with open("old_outputs/track_features.json", "r") as file:
     tracks_features = json.load(file)
 
 df_features = pd.DataFrame(tracks_features)
-df_features.columns
-top_columns = [
+feature_columns = [
     "id",
     "acousticness",
     "danceability",
@@ -88,17 +70,13 @@ top_columns = [
     "duration_ms",
 ]
 
-df_features = df_features[top_columns]
-
-
-# actually were just gonna add all the analysis features to the track table because
-# its only relation is to the track and contains all the metrics. without doing this
-# tracks don't have manyfacts and the analysis doesn't have much reason for existing
+df_features = df_features[feature_columns]
 
 # join tracks and analysis together
 
-df_tracks_and_features = df_tracks_new.merge(df_features, on="id").drop_duplicates()
-df_tracks_and_features.head()
+df_tracks_and_features = df_tracks.merge(df_features, on="id").drop_duplicates()
+
+# TODO - save tracks with analysis
 
 
 # get artist data
@@ -107,18 +85,19 @@ with open("outputs/artists.json", "r") as file:
 
 df_artists = pd.json_normalize(artists)
 
-df_artists.columns
-
-top_columns = [
+artist_columns = [
     "id",
     "name",
     "popularity",
     "followers.total",
 ]
 
-df_artists = df_artists[top_columns]
-df_artists = df_artists.rename(columns={"followers.total": "followers"})
-df_artists.head()
+df_artists = df_artists[artist_columns]
+df_artists = df_artists.rename(
+    columns={"followers.total": "followers"}
+).drop_duplicates()
+
+# TODO -- cast datatypes and save artists
 
 
 # get album data
@@ -128,7 +107,15 @@ with open("outputs/albums.json", "r") as file:
 
 df_albums = pd.json_normalize(albums)
 
-df_albums.columns
+# explode artists to get album-artists relationship for collabs and compilations
+
+df_albums_exploded = df_albums[["artists", "id"]].explode(column="artists")
+artist_ids = (
+    df_albums_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
+)
+df_albums_exploded["artists"] = artist_ids
+df_albums_exploded.columns = ["artist_id", "album_id"]
+album_artists = df_albums_exploded.drop_duplicates().dropna()
 
 album_columns = [
     "id",
@@ -139,31 +126,8 @@ album_columns = [
     "label",
 ]
 
-
 df_albums = df_albums[album_columns]
-
-
-# explode the artists thing like we did for tracks
-
-df_albums_exploded = df_albums[["artists", "id"]].explode(column="artists")
-artist_ids = (
-    df_albums_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
-)
-df_albums_exploded["artists"] = artist_ids
-df_albums_exploded.columns = ["artist_id", "album_id"]
-album_artists = df_albums_exploded
-album_artists.head()
-
-# len(album_artists['artist_id'].unique())
-# len(album_artists['album_id'].unique())
-
-# album_artists.groupby('album_id').count().reset_index().sort_values('artist_id', ascending=False)
-
-
-# to impute the dates for all of these so that it is easier to work with,
-# were gonna write a little apply function
-
-# df_albums[df_albums["release_date_precision"] == "year"].head()
+df_albums = df_albums.drop_duplicates()
 
 
 def handle_dates(row):
@@ -178,7 +142,7 @@ def handle_dates(row):
 df_albums["release_date"] = df_albums.apply(handle_dates, axis=1)
 df_albums = df_albums.drop(columns=["release_date_precision"])
 
-# TODO - cast dates to dates and other columns to better datatypes
+# TODO - cast dates to dates and other columns to better datatypes and save albums
 
 
 # handle playlists
@@ -191,31 +155,20 @@ playlist_columns = ["id", "name", "description", "genre"]
 
 df_playlists = df_playlists[playlist_columns]
 
-
-# join genre to track
+# join genre to playlist
 df_genre = pd.read_csv("genres.csv")
-
-df_genre.head()
-
-
 df_playlists_and_genres = df_playlists.merge(
     df_genre, left_on="genre", right_on="name", suffixes=("_playlist", "_genre")
 )
-df_playlists_and_genres.columns
-
-df_playlist_genre = df_playlists_and_genres[["id_playlist", "id_genre"]]
+df_playlist_genre = (
+    df_playlists_and_genres[["id_playlist", "id_genre"]].drop_duplicates().dropna()
+)
 df_playlist_genre.columns = ["playlist_id", "genre_id"]
 
-df_tracks_playlists.shape
+# TODO dave playlist_genre table
 
 
-"""
-DONT ACTUALLY WANT THIS TABLE SINCE IT IS THE RESULT OF TWO OTHER JOINED TABLES
-"""
-df_track_genre = df_tracks_playlists.merge(df_playlist_genre, on="playlist_id")
-df_track_genre = df_track_genre[["track_id", "genre_id"]].drop_duplicates()
+# drop genre from playlist and drop duplicates
+df_playlists = df_playlists.drop(columns=["genre"]).drop_duplicates()
 
-
-# output_path = "new_outputs"
-# with open(f"{output_path}/playlists.json", "w", encoding="utf-8") as file:
-#     json.dump(playlists, file)
+# TODO - save playlists
