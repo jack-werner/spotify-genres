@@ -8,7 +8,7 @@ import requests
 
 load_dotenv()
 
-output_path = "final_outputs"
+output_path = "sub_outputs"
 
 # get genres
 auth = SpotifyClientCredentials(
@@ -19,6 +19,19 @@ spotify = spotipy.Spotify(auth_manager=auth)
 token = auth.get_access_token(as_dict=False)
 
 genres = spotify.recommendation_genre_seeds().get("genres")
+all_genres = genres
+
+#### TEMP #####
+### get genres from file
+file_path = "limited-genres.txt"
+with open(file_path, "r") as file:
+    content_list = file.readlines()
+
+genres = [line.strip() for line in content_list]
+
+# len(genres)
+# genres[1]
+
 
 # get playlists
 print("getting playlists")
@@ -53,11 +66,30 @@ def get_playlist_items(playlist_id, token):
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    while response.status_code == 429:
-        print("rate limit")
-        wait_time = response.headers.get("retry-after")
-        print("waiting", wait_time)
-        time.sleep(1 + int(wait_time))
+    return response
+
+
+def handle_playlist_items(playlist_id, token):
+    response = get_playlist_items(playlist_id, token)
+
+    while not response.ok:
+        if response.status_code == 429:
+            print("rate limit")
+            wait_time = response.headers.get("retry-after")
+            print("waiting", wait_time)
+            time.sleep(1 + int(wait_time))
+
+        elif response.status_code == 401:
+            print("401")
+            auth = SpotifyClientCredentials(
+                client_id=os.environ.get("CLIENT_ID"),
+                client_secret=os.environ.get("CLIENT_SECRET"),
+            )
+            # spotify = spotipy.Spotify(auth_manager=auth)
+            token = auth.get_access_token(as_dict=False)
+        else:
+            raise requests.exceptions.HTTPError(response.text)
+        response = get_playlist_items(playlist_id, token)
 
     if response.ok:
         return response.json()
@@ -74,7 +106,7 @@ def get_playlists_tracks_api(token, playlist_id, total, limit=100):
         #     limit=limit,
         #     offset=offset,
         # )
-        track_results = get_playlist_items(playlist_id, token)
+        track_results = handle_playlist_items(playlist_id, token)
         if track_results:
             # TODO something to handle rate limiting in here
             playlist_items += track_results.get("items")
@@ -124,8 +156,30 @@ end = time.perf_counter()
 print("duration", end - start)
 print("tracks", len(tracks))
 
+### TEMP ####
+## continuing to get tracks from the playlists
+continued_tracks = tracks.copy()
+
+start = time.perf_counter()
+for i, playlist in enumerate(playlists[1367:]):
+    print("playlist", i)
+
+    playlist_id = playlist.get("id")
+    number_tracks = playlist.get("tracks").get("total")
+    print("total_tracks", number_tracks)
+    # tracks += get_playlists_tracks(playlist_id, number_tracks, 100)
+    continued_tracks += get_playlists_tracks_api(token, playlist_id, number_tracks, 100)
+    print("accumulated_tracks", len(continued_tracks))
+    time.sleep(1)  # to avoid running into rate limit issues
+
+end = time.perf_counter()
+print("duration", end - start)
+print("tracks", len(tracks))
+
+
 # save tracks
 with open(f"{output_path}/tracks.json", "w", encoding="utf-8") as file:
+    # with open(f"checkpoint/tracks.json", "w", encoding="utf-8") as file:
     json.dump(tracks, file)
 
 

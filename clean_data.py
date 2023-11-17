@@ -19,7 +19,7 @@ with open("outputs/tracks.json", "r") as file:
 df_tracks = pd.json_normalize(tracks)
 df_tracks.columns
 
-top_columns = [
+track_columns = [
     "id",
     "name",
     "popularity",
@@ -29,7 +29,7 @@ top_columns = [
 ]
 
 
-df_tracks_new = df_tracks[top_columns]
+df_tracks_new = df_tracks[track_columns]
 df_tracks_new.head()
 
 
@@ -41,7 +41,10 @@ df_exploded.columns = ["artist_id", "track_id"]
 tracks_artists = df_exploded
 tracks_artists.head()
 
-# TODO get tracks_playlists relationship
+# get tracks_playlists relationship
+df_tracks[["id", "playlist_id"]].head()
+df_tracks_playlists = df_tracks[["id", "playlist_id"]].drop_duplicates()
+df_tracks_playlists.columns = ["track_id", "playlist_id"]
 
 
 # sanity check that this relationship makes sense -=- TODO actually drop duplicates here
@@ -179,81 +182,38 @@ df_albums = df_albums.drop(columns=["release_date_precision"])
 
 
 # handle playlists
-load_dotenv()
-
 with open("new_outputs/playlists.json", "r") as file:
     playlists = json.load(file)
 
 df_playlists = pd.json_normalize(playlists)
-df_playlists.columns
 
 playlist_columns = ["id", "name", "description", "genre"]
 
 df_playlists = df_playlists[playlist_columns]
 
-playlist_ids = [p.get("id") for p in playlists]
-
-# playlist_ids[0]
-
-get_playlists_tracks(playlist_ids[0], 200, 100)
-
-
-# TESTING
-auth = SpotifyClientCredentials(
-    client_id=os.environ.get("CLIENT_ID"),
-    client_secret=os.environ.get("CLIENT_SECRET"),
-)
-
-spotify = spotipy.Spotify(auth_manager=auth)
-
-token = auth.get_access_token(as_dict=False)
-token
-track_results = spotify.playlist_items(
-    playlist_id=playlist_ids[0],
-    additional_types=["track"],
-    limit=100,
-    offset=0,
-)
-
-response = requests.get(
-    f"https://api.spotify.com/v1/playlists/{playlist_ids[0]}/tracks",
-    # params={
-    #     'q': q,
-    #     'type': 'playlist',
-    #     'limit': limit
-    # },
-    headers={"Authorization": f"Bearer {token}"},
-)
-
-import os
-
-os.environ["CLIENT_SECRET"]
-
-response.ok
-response.headers["content-type"]
-response.headers.get("content-type")
-dict(response.headers).keys()
-
-response.status_code
-
-response.headers
-response.headers["retry-after"]
-
-response = requests.get(
-    f"https://api.spotify.com/v1/audio-features/{tracks[0].get('id')}",
-    params={"limit": limit},
-    headers={"Authorization": f"Bearer {token}"},
-)
-
-
-# request limit is by endpoint per account. different apps don't help
-# spotify.
-
 
 # join genre to track
+df_genre = pd.read_csv("genres.csv")
+
+df_genre.head()
 
 
-# genre
+df_playlists_and_genres = df_playlists.merge(
+    df_genre, left_on="genre", right_on="name", suffixes=("_playlist", "_genre")
+)
+df_playlists_and_genres.columns
+
+df_playlist_genre = df_playlists_and_genres[["id_playlist", "id_genre"]]
+df_playlist_genre.columns = ["playlist_id", "genre_id"]
+
+df_tracks_playlists.shape
+
+
+"""
+DONT ACTUALLY WANT THIS TABLE SINCE IT IS THE RESULT OF TWO OTHER JOINED TABLES
+"""
+df_track_genre = df_tracks_playlists.merge(df_playlist_genre, on="playlist_id")
+df_track_genre = df_track_genre[["track_id", "genre_id"]].drop_duplicates()
 
 
 # output_path = "new_outputs"
