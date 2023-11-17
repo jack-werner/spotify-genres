@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy
 import json
+import requests
 
 # all the relationship things we need to take care of
 track_artists = []
@@ -39,6 +40,8 @@ df_exploded["artists"] = artist_ids
 df_exploded.columns = ["artist_id", "track_id"]
 tracks_artists = df_exploded
 tracks_artists.head()
+
+# TODO get tracks_playlists relationship
 
 
 # sanity check that this relationship makes sense -=- TODO actually drop duplicates here
@@ -176,6 +179,84 @@ df_albums = df_albums.drop(columns=["release_date_precision"])
 
 
 # handle playlists
+load_dotenv()
+
+with open("new_outputs/playlists.json", "r") as file:
+    playlists = json.load(file)
+
+df_playlists = pd.json_normalize(playlists)
+df_playlists.columns
+
+playlist_columns = ["id", "name", "description", "genre"]
+
+df_playlists = df_playlists[playlist_columns]
+
+playlist_ids = [p.get("id") for p in playlists]
+
+# playlist_ids[0]
+
+get_playlists_tracks(playlist_ids[0], 200, 100)
+
+
+# TESTING
+auth = SpotifyClientCredentials(
+    client_id=os.environ.get("CLIENT_ID"),
+    client_secret=os.environ.get("CLIENT_SECRET"),
+)
+
+spotify = spotipy.Spotify(auth_manager=auth)
+
+token = auth.get_access_token(as_dict=False)
+token
+track_results = spotify.playlist_items(
+    playlist_id=playlist_ids[0],
+    additional_types=["track"],
+    limit=100,
+    offset=0,
+)
+
+response = requests.get(
+    f"https://api.spotify.com/v1/playlists/{playlist_ids[0]}/tracks",
+    # params={
+    #     'q': q,
+    #     'type': 'playlist',
+    #     'limit': limit
+    # },
+    headers={"Authorization": f"Bearer {token}"},
+)
+
+import os
+
+os.environ["CLIENT_SECRET"]
+
+response.ok
+response.headers["content-type"]
+response.headers.get("content-type")
+dict(response.headers).keys()
+
+response.status_code
+
+response = requests.get(
+    f"https://api.spotify.com/v1/audio-features/{tracks[0].get('id')}",
+    # params={
+    #     'q': q,
+    #     'type': 'playlist',
+    #     'limit': limit
+    # },
+    headers={"Authorization": f"Bearer {token}"},
+)
+
+
+# request limit is by endpoint per account. different apps don't help
+# spotify.
+
+
+# join genre to track
 
 
 # genre
+
+
+# output_path = "new_outputs"
+# with open(f"{output_path}/playlists.json", "w", encoding="utf-8") as file:
+#     json.dump(playlists, file)

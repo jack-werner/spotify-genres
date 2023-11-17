@@ -1,12 +1,14 @@
 import spotipy
-import sys
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 import os
 import time
 import json
+import requests
 
 load_dotenv()
+
+output_path = "final_outputs"
 
 # get genres
 spotify = spotipy.Spotify(
@@ -27,13 +29,54 @@ for genre in genres:
         playlist_items = search_results.get("playlists").get("items")
         playlists += [{**i, "genre": genre} for i in playlist_items]
 
-print(playlists[0].keys())
+# print(playlists[0].keys())
 
 playlist_ids = [p.get("id") for p in playlists]
+
+# write playlists
+len(playlists)
+with open(f"{output_path}/playlists.json", "w", encoding="utf-8") as file:
+    json.dump(playlists, file)
 
 
 # get tracks from playlists
 print("getting tracks from playlists")
+
+
+# def get_playlist_items(playlist_id, token):
+#     url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+#     response = requests.get(
+#         url,
+#         headers={"Authorization": f"Bearer {token}"},
+#     )
+
+#     while response.status_code == 429:
+#         wait_time = response.headers.get("")
+
+#     if response.ok:
+#         return response.json()
+
+
+# def get_playlists_tracks_api(playlist_id, total, limit=100):
+#     playlist_items = []
+#     offset = 0
+#     while offset < total:
+#         print(offset)
+#         track_results = spotify.playlist_items(
+#             playlist_id=playlist_id,
+#             additional_types=["track"],
+#             limit=limit,
+#             offset=offset,
+#         )
+#         if track_results:
+#             # TODO something to handle rate limiting in here
+#             playlist_items += track_results.get("items")
+#         offset += limit
+
+#     # don't need data around when the tracks were added to the playlist
+#     playlist_tracks = [i.get("track") for i in playlist_items if i.get("track")]
+
+#     return [{**i, "playlist_id": playlist_id} for i in playlist_tracks]
 
 
 def get_playlists_tracks(playlist_id, total, limit=100):
@@ -61,14 +104,20 @@ def get_playlists_tracks(playlist_id, total, limit=100):
 start = time.perf_counter()
 tracks = []
 for i, playlist in enumerate(playlists):
-    print(i)
+    print("playlist", i)
+
     playlist_id = playlist.get("id")
     number_tracks = playlist.get("tracks").get("total")
+    print("total_tracks", number_tracks)
     tracks += get_playlists_tracks(playlist_id, number_tracks, 100)
 
 end = time.perf_counter()
 print("duration", end - start)
 print("tracks", len(tracks))
+
+# save tracks
+with open(f"{output_path}/tracks.json", "w", encoding="utf-8") as file:
+    json.dump(tracks, file)
 
 
 track_ids = [i.get("id") for i in tracks if i.get("id")]
@@ -99,6 +148,11 @@ start = time.perf_counter()
 all_track_features = get_all_track_features(track_ids, 100)
 end = time.perf_counter()
 print("duration", end - start)
+
+
+# save
+with open(f"{output_path}/track_features.json", "w", encoding="utf-8") as file:
+    json.dump(all_track_features, file)
 
 
 # get all artists
@@ -138,6 +192,11 @@ all_artists = get_all_artists(artist_ids, 50)
 end = time.perf_counter()
 print("duration", end - start)
 
+# save artists
+len(all_artists)
+with open(f"{output_path}/artists.json", "w", encoding="utf-8") as file:
+    json.dump(all_artists, file)
+
 # get all albums
 accessed_albums = [i.get("album") for i in tracks if i.get("album")]
 album_ids = [i.get("id") for i in accessed_albums if i.get("id")]
@@ -170,25 +229,24 @@ print("duration", end - start)
 
 
 # write to JSON
-output_path = "final_outputs"
-with open(f"{output_path}/track_features.json", "w", encoding="utf-8") as file:
-    json.dump(all_track_features, file)
+# with open(f"{output_path}/track_features.json", "w", encoding="utf-8") as file:
+#     json.dump(all_track_features, file)
 
 # write tracks
-with open(f"{output_path}/tracks.json", "w", encoding="utf-8") as file:
-    json.dump(tracks, file)
+# with open(f"{output_path}/tracks.json", "w", encoding="utf-8") as file:
+#     json.dump(tracks, file)
 
 # write artists
-len(all_artists)
-with open(f"{output_path}/artists.json", "w", encoding="utf-8") as file:
-    json.dump(all_artists, file)
+# len(all_artists)
+# with open(f"{output_path}/artists.json", "w", encoding="utf-8") as file:
+#     json.dump(all_artists, file)
 
 # write albums
-len(all_albums)
-with open(f"{output_path}/albums.json", "w", encoding="utf-8") as file:
-    json.dump(all_albums, file)
+# len(all_albums)
+# with open(f"{output_path}/albums.json", "w", encoding="utf-8") as file:
+#     json.dump(all_albums, file)
 
 # write playlists
-len(playlists)
-with open(f"{output_path}/playlists.json", "w", encoding="utf-8") as file:
-    json.dump(playlists, file)
+# len(playlists)
+# with open(f"{output_path}/playlists.json", "w", encoding="utf-8") as file:
+#     json.dump(playlists, file)
