@@ -411,8 +411,19 @@ class SpotifyExtractor:
 
         return track_features
 
-    def get_all_artists() -> list[dict]:
-        pass
+    def get_all_artists(self, artist_ids: list[str], limit: int = 50) -> list[dict]:
+        offset = 0
+        total = len(artist_ids)
+        artists = []
+
+        while offset < total:
+            id_chunk = artist_ids[offset : offset + limit]
+            if id_chunk:
+                artists_result = self.handle_requests(self.get_artists, id_chunk)
+                artists += artists_result.get("artists")
+            offset += limit
+
+        return artists
 
     def get_all_albums() -> list[dict]:
         pass
