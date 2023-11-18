@@ -97,7 +97,7 @@ def handle_playlist_items(playlist_id, token):
         return response.json()
 
 
-def get_playlists_tracks_api(token, playlist_id, total, limit=100):
+def get_playlists_tracks_api(token, playlist_id, total, limit=50):
     playlist_items = []
     offset = 0
     while offset < total:

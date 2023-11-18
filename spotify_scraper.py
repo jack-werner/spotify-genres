@@ -3,52 +3,52 @@ import requests
 import dotenv
 import base64
 import os
+import time
+from typing import Callable
 
 dotenv.load_dotenv()
 
 
-# def client_credentials_auth(client_id, client_secret, timeout=5) -> requests.Response:
-#     url = "https://accounts.spotify.com/api/token"
-#     auth_string = f"{client_id}:{client_secret}"
-#     b64_encoded_string = base64.b64encode(auth_string.encode("utf-8"))
-#     encoded = base64.b64encode(
-#         (client_id + ":" + client_secret).encode("ascii")
-#     ).decode("ascii")
-#     print(encoded)
+def client_credentials_auth(client_id, client_secret, timeout=5) -> requests.Response:
+    url = "https://accounts.spotify.com/api/token"
+    auth_string = f"{client_id}:{client_secret}"
+    encoded = base64.b64encode(
+        (client_id + ":" + client_secret).encode("ascii")
+    ).decode("ascii")
 
-#     headers = {
-#         "Authorization": f"Basic {encoded}",
-#         "Content-Type": "application/x-www-form-urlencoded",
-#     }
+    headers = {
+        "Authorization": f"Basic {encoded}",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
 
-#     response = requests.post(
-#         url,
-#         params={"grant_type": "client_credentials"},
-#         headers=headers,
-#         timeout=timeout,
-#     )
+    response = requests.post(
+        url,
+        params={"grant_type": "client_credentials"},
+        headers=headers,
+        timeout=timeout,
+    )
 
-#     return response
+    return response
 
 
 client_id = os.environ.get("CLIENT_ID")
 client_secret = os.environ.get("CLIENT_SECRET")
 
-auth = client_credentials_auth(client_id, client_secret)
-auth.status_code
-token = auth.json().get("access_token")
+# auth = client_credentials_auth(client_id, client_secret)
+# auth.status_code
+# token = auth.json().get("access_token")
 token
 
 
-# def get_playlist(playlist_id: str, timeout=5):
-#     url = f"https://api.spotify.com/v1/playlists/{playlist_id}"
-#     response = requests.get(
-#         url,
-#         params={"fields": "tracks"},
-#         headers={"Authorization": f"Bearer {token}"},
-#         timeout=timeout,
-#     )
-#     return response
+def get_playlist(playlist_id: str, timeout=5):
+    url = f"https://api.spotify.com/v1/playlists/{playlist_id}"
+    response = requests.get(
+        url,
+        params={"fields": "tracks"},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=timeout,
+    )
+    return response
 
 
 # def get_playlist_items(playlist_id: str, limit: int = 50, offset: int = 0, timeout=5):
@@ -118,22 +118,22 @@ track_features.ok
 len(track_features.json().get("audio_features"))
 
 
-# def get_artists(artist_ids: str | list[str]) -> requests.Response:
-#     if isinstance(artist_ids, list):
-#         if len(artist_ids) > 50:
-#             raise ValueError(
-#                 f"track_ids too long: {len(artist_ids)}. Can only supply up to 50 ids."
-#             )
-#         artist_ids = ",".join(artist_ids)
-#     url = "https://api.spotify.com/v1/artists"
-#     response = requests.get(
-#         url,
-#         params={"ids": artist_ids},
-#         headers={
-#             "Authorization": f"Bearer {token}",
-#         },
-#     )
-#     return response
+def get_artists(artist_ids: str | list[str]) -> requests.Response:
+    if isinstance(artist_ids, list):
+        if len(artist_ids) > 50:
+            raise ValueError(
+                f"track_ids too long: {len(artist_ids)}. Can only supply up to 50 ids."
+            )
+        artist_ids = ",".join(artist_ids)
+    url = "https://api.spotify.com/v1/artists"
+    response = requests.get(
+        url,
+        params={"ids": artist_ids},
+        headers={
+            "Authorization": f"Bearer {token}",
+        },
+    )
+    return response
 
 
 tracks[0].keys()
@@ -173,6 +173,35 @@ album_ids = [i.get("id") for i in accessed_albums if i.get("id")]
 len(album_ids)
 
 res = get_albums(album_ids[0])
+
+
+def handle_requests(requester: Callable, *args, **kwargs) -> requests.Response:
+    response = requester(*args, **kwargs)
+    while not response.ok:
+        if response.status_code == 429:
+            print("rate limit")
+            wait_time = response.headers.get("retry-after")
+            print("waiting", wait_time)
+            time.sleep(1 + int(wait_time))
+        elif response.status_code == 401:
+            print("401 Error, refreshing token")
+            auth = client_credentials_auth(client_id, client_secret)
+            if auth.ok:
+                token = auth.json().get("access_token")
+            else:
+                raise requests.exceptions.HTTPError(auth.text)
+        elif response.status_code == 404:
+            return None
+        else:
+            raise requests.exceptions.HTTPError(response.text)
+        response = requester(*args, **kwargs)
+
+    return response
+
+
+res = handle_requests(get_albums, album_ids[:20])
+res = handle_requests(get_playlist, playlist_id)
+# res.json().get('tracks')
 
 
 class SpotifyExtractor:
@@ -228,7 +257,7 @@ class SpotifyExtractor:
         response = requests.get(
             url,
             params={"fields": "tracks"},
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {self.token}"},
             timeout=timeout,
         )
         return response
@@ -240,7 +269,7 @@ class SpotifyExtractor:
         response = requests.get(
             url,
             params={"limit": limit, "offset": offset},
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {self.token}"},
             timeout=timeout,
         )
         return response
@@ -249,9 +278,9 @@ class SpotifyExtractor:
         self, track_ids: str | list[str], timeout=5
     ) -> requests.Response:
         if isinstance(track_ids, list):
-            if len(track_ids) > 50:
+            if len(track_ids) > 100:
                 raise ValueError(
-                    f"track_ids too long: {len(track_ids)}. Can only supply up to 50 ids."
+                    f"track_ids too long: {len(track_ids)}. Can only supply up to 100 ids."
                 )
             track_ids = ",".join(track_ids)
 
@@ -262,7 +291,7 @@ class SpotifyExtractor:
                 "ids": track_ids,
             },
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {self.token}",
             },
             timeout=timeout,
         )
@@ -272,7 +301,7 @@ class SpotifyExtractor:
         if isinstance(artist_ids, list):
             if len(artist_ids) > 50:
                 raise ValueError(
-                    f"track_ids too long: {len(artist_ids)}. Can only supply up to 50 ids."
+                    f"artist_ids too long: {len(artist_ids)}. Can only supply up to 50 ids."
                 )
             artist_ids = ",".join(artist_ids)
         url = "https://api.spotify.com/v1/artists"
@@ -280,7 +309,7 @@ class SpotifyExtractor:
             url,
             params={"ids": artist_ids},
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {self.token}",
             },
             timeout=timeout,
         )
@@ -290,7 +319,7 @@ class SpotifyExtractor:
         if isinstance(album_ids, list):
             if len(album_ids) > 20:
                 raise ValueError(
-                    f"track_ids too long: {len(album_ids)}. Can only supply up to 50 ids."
+                    f"album_ids too long: {len(album_ids)}. Can only supply up to 20 ids."
                 )
             album_ids = ",".join(album_ids)
         url = "https://api.spotify.com/v1/albums"
@@ -298,28 +327,92 @@ class SpotifyExtractor:
             url,
             params={"ids": album_ids},
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {self.token}",
             },
             timeout=timeout,
         )
         return response
 
+    # helper method for handling rate limiting, token refresh, and 404 errors
+    def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
+        response = requester(*args, **kwargs)
+        while not response.ok:
+            if response.status_code == 429:
+                print("rate limit")
+                wait_time = response.headers.get("retry-after")
+                print("waiting", wait_time)
+                time.sleep(1 + int(wait_time))
+            elif response.status_code == 401:
+                print("401 Error, refreshing token")
+                auth = self.client_credentials_auth()
+                if auth.ok:
+                    self.token = auth.json().get("access_token")
+                else:
+                    raise requests.exceptions.HTTPError(auth.text)
+            elif response.status_code == 404:
+                return None
+            else:
+                raise requests.exceptions.HTTPError(response.text)
+            response = requester(*args, **kwargs)
+
+        return response.json()
+
     # methods that handle iterating through the various endpoints
-    def get_all_playlists() -> list[dict]:
-        pass
+    def get_all_playlists(self, genre) -> list[dict]:
+        search_results = handle_requests(self.search_playlists, genre, limit=50)
+        playlist_items = search_results.get("playlists").get("items")
+        playlists = [{**i, "genre": genre} for i in playlist_items]
 
-    def get_all_songs() -> list[dict]:
-        pass
+        return playlists
 
-    def get_all_song_features() -> list[dict]:
-        pass
+    def get_all_songs_from_playlist(
+        self, playlist_id: str, total: int, limit: int = 50, timeout=5
+    ) -> list[dict]:
+        playlist_items = []
+        offset = 0
+        while offset < total:
+            track_results = self.handle_requests(
+                self.get_playlist_items,
+                playlist_id,
+                limit=limit,
+                offset=offset,
+                timeout=timeout,
+            )
+            playlist_items += track_results.get("items")
+            offset += limit
+
+        playlist_tracks = [i.get("track") for i in playlist_items if i.get("track")]
+
+        return [{**i, "playlist_id": playlist_id} for i in playlist_tracks]
+
+    def get_all_songs_from_playlists(
+        self, playlists: list[dict], limit: int = 50, delay: int | float = 0.5
+    ) -> list[dict]:
+        tracks = []
+        for i, playlist in enumerate(playlists):
+            playlist_id = playlist.get("id")
+            number_tracks = playlist.get("tracks").get("total")
+            tracks += self.get_all_songs_from_playlist(
+                playlist_id, number_tracks, limit=50
+            )
+            time.sleep(delay)
+        return tracks
+
+    def get_all_track_features(self, track_ids, limit: int = 100) -> list[dict]:
+        offset = 0
+        total = len(track_ids)
+        track_features = []
+        while offset < total:
+            id_chunk = track_ids[offset : offset + limit]
+            if id_chunk:
+                features = self.handle_requests(self.get_audio_features, id_chunk)
+                track_features += features
+            offset += limit
+
+        return track_features
 
     def get_all_artists() -> list[dict]:
         pass
 
     def get_all_albums() -> list[dict]:
-        pass
-
-    # helper method for handling rate limiting, token refresh, and 404 errors
-    def handle_requests() -> list[dict]:
         pass
