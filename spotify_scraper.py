@@ -118,6 +118,63 @@ track_features.ok
 len(track_features.json().get("audio_features"))
 
 
+# def get_artists(artist_ids: str | list[str]) -> requests.Response:
+#     if isinstance(artist_ids, list):
+#         if len(artist_ids) > 50:
+#             raise ValueError(
+#                 f"track_ids too long: {len(artist_ids)}. Can only supply up to 50 ids."
+#             )
+#         artist_ids = ",".join(artist_ids)
+#     url = "https://api.spotify.com/v1/artists"
+#     response = requests.get(
+#         url,
+#         params={"ids": artist_ids},
+#         headers={
+#             "Authorization": f"Bearer {token}",
+#         },
+#     )
+#     return response
+
+
+tracks[0].keys()
+# artists = [i.get('artists') for i in tracks if i.get('artists')]
+artist_lists = [i.get("artists") for i in tracks if i.get("artists")]
+artist_ids = []
+for artist_list in artist_lists:
+    artists_ids = [i.get("id") for i in artist_list if i.get("id")]
+    artist_ids += artists_ids
+
+len(artist_ids)
+
+artists = get_artists(artist_ids[0])
+artists.json()["artists"][0].keys()
+
+
+def get_albums(album_ids: str | list[str]) -> requests.Response:
+    if isinstance(album_ids, list):
+        if len(album_ids) > 20:
+            raise ValueError(
+                f"track_ids too long: {len(album_ids)}. Can only supply up to 50 ids."
+            )
+        album_ids = ",".join(album_ids)
+    url = "https://api.spotify.com/v1/albums"
+    response = requests.get(
+        url,
+        params={"ids": album_ids},
+        headers={
+            "Authorization": f"Bearer {token}",
+        },
+    )
+    return response
+
+
+accessed_albums = [i.get("album") for i in tracks if i.get("album")]
+album_ids = [i.get("id") for i in accessed_albums if i.get("id")]
+len(album_ids)
+
+res = get_albums(album_ids[0])
+
+
 class SpotifyExtractor:
     def __init__(self, client_id, client_secret) -> None:
         # authenticate
@@ -211,11 +268,41 @@ class SpotifyExtractor:
         )
         return response
 
-    def get_artists() -> list[dict]:
-        pass
+    def get_artists(self, artist_ids: str | list[str], timeout=5) -> requests.Response:
+        if isinstance(artist_ids, list):
+            if len(artist_ids) > 50:
+                raise ValueError(
+                    f"track_ids too long: {len(artist_ids)}. Can only supply up to 50 ids."
+                )
+            artist_ids = ",".join(artist_ids)
+        url = "https://api.spotify.com/v1/artists"
+        response = requests.get(
+            url,
+            params={"ids": artist_ids},
+            headers={
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=timeout,
+        )
+        return response
 
-    def get_albums() -> list[dict]:
-        pass
+    def get_albums(self, album_ids: str | list[str], timeout=5) -> requests.Response:
+        if isinstance(album_ids, list):
+            if len(album_ids) > 20:
+                raise ValueError(
+                    f"track_ids too long: {len(album_ids)}. Can only supply up to 50 ids."
+                )
+            album_ids = ",".join(album_ids)
+        url = "https://api.spotify.com/v1/albums"
+        response = requests.get(
+            url,
+            params={"ids": album_ids},
+            headers={
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=timeout,
+        )
+        return response
 
     # methods that handle iterating through the various endpoints
     def get_all_playlists() -> list[dict]:
