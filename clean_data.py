@@ -19,7 +19,6 @@ track_columns = [
     "external_ids.isrc",
 ]
 
-
 df_tracks = df_tracks[track_columns]
 df_tracks = df_tracks.rename(
     columns={"album.id": "album_id", "external_ids.isrc": "isrc"}
@@ -34,7 +33,9 @@ df_tracks_exploded["artists"] = artist_ids
 df_tracks_exploded.columns = ["artist_id", "track_id"]
 tracks_artists = df_tracks_exploded.drop_duplicates().dropna()
 
-# TODO -- save track- artists
+# cast and save track-artists
+tracks_artists.astype({"track_id": str, "album_id": str})
+tracks_artists.to_parquet("track_artist.parquet", index=False)
 
 # get tracks_playlists relationship
 df_tracks[["id", "playlist_id"]].head()
@@ -42,13 +43,15 @@ df_tracks_playlists = df_tracks[["id", "playlist_id"]].drop_duplicates().dropna(
 df_tracks_playlists.columns = ["track_id", "playlist_id"]
 
 
-# TODO -- save tracks_playlists
+# save tracks_playlists
+df_tracks_playlists.astype({"track_id": str, "playlist_id": str})
+df_tracks_playlists.to_parquet("track_playlist", index=False)
 
 # drop playlist id now that we have the edge table? and drop duplicates for tracks
 df_tracks = df_tracks.drop(columns=["playlist_id"]).drop_duplicates()
 
 
-# process track analysises
+# process track features
 with open("old_outputs/track_features.json", "r") as file:
     tracks_features = json.load(file)
 
@@ -76,7 +79,26 @@ df_features = df_features[feature_columns]
 
 df_tracks_and_features = df_tracks.merge(df_features, on="id").drop_duplicates()
 
-# TODO - save tracks with analysis
+# TODO - save tracks with features
+df_tracks_and_features = df_tracks_and_features.astype(
+    {
+        "id": str,
+        "acousticness": float,
+        "danceability": float,
+        "energy": float,
+        "instrumentalness": float,
+        "speechiness": float,
+        "key": int,
+        "liveness": float,
+        "loudness": float,
+        "mode": int,
+        "tempo": float,
+        "time_signature": int,
+        "valence": float,
+        "duration_ms": int,
+    }
+)
+df_tracks_and_features.to_parquet("tracks.parquet", index=False)
 
 
 # get artist data
@@ -98,6 +120,15 @@ df_artists = df_artists.rename(
 ).drop_duplicates()
 
 # TODO -- cast datatypes and save artists
+df_artists = df_artists.astype(
+    {
+        "id": str,
+        "name": str,
+        "popularity": int,
+        "followers": int,
+    }
+)
+df_artists.to_parquet("artists.parquet", index=False)
 
 
 # get album data
@@ -143,6 +174,15 @@ df_albums["release_date"] = df_albums.apply(handle_dates, axis=1)
 df_albums = df_albums.drop(columns=["release_date_precision"])
 
 # TODO - cast dates to dates and other columns to better datatypes and save albums
+df_albums.astype(
+    {
+        "id": str,
+        "name": str,
+        "type": str,
+        "release_date": "datetime64",
+        "label": str,
+    }
+)
 
 
 # handle playlists
@@ -166,9 +206,19 @@ df_playlist_genre = (
 df_playlist_genre.columns = ["playlist_id", "genre_id"]
 
 # TODO dave playlist_genre table
+df_playlist_genre.astype({"playlist_id": str, "genre_id": str})
+df_playlist_genre.to_parquet("playlist_genre.parquet", index=False)
 
 
 # drop genre from playlist and drop duplicates
 df_playlists = df_playlists.drop(columns=["genre"]).drop_duplicates()
 
 # TODO - save playlists
+df_playlists.astype(
+    {
+        "id": str,
+        "name": str,
+        "description": str,
+    }
+)
+df_playlists.to_parquet("playlists.parquet", index=False)

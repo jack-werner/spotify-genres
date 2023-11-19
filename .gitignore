@@ -8,3 +8,4 @@ outputs
 new_outputs
 sub_outputs
 checkpoint
+__pycache__
