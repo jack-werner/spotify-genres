@@ -1,7 +1,22 @@
 import pandas as pd
-import numpy
 import json
-import requests
+import os
+
+
+def read_files(parent_directory: str, file_name: str):
+    content = []
+    entries = os.listdir(parent_directory)
+    directories = [
+        entry
+        for entry in entries
+        if os.path.isdir(os.path.join(parent_directory, entry))
+    ]
+    for directory in directories:
+        path = f"{parent_directory}/{directory}/{file_name}.json"
+        with open(path) as file:
+            content += json.load(file)
+    return content
+
 
 # process tracks
 with open("outputs/tracks.json", "r") as file:
@@ -205,7 +220,7 @@ df_playlist_genre = (
 )
 df_playlist_genre.columns = ["playlist_id", "genre_id"]
 
-# TODO dave playlist_genre table
+# TODO save playlist_genre table
 df_playlist_genre.astype({"playlist_id": str, "genre_id": str})
 df_playlist_genre.to_parquet("playlist_genre.parquet", index=False)
 

@@ -22,7 +22,8 @@ spotify = SpotifyExtractor(os.environ["CLIENT_ID"], os.environ["CLIENT_SECRET"])
 df_genres = pd.read_csv("genres.csv")
 genres = df_genres["name"].to_list()
 
-genres = ["alt-rock", "country", "hip-hop", "house", "power-pop", "classical"]
+# genres = ["alt-rock", "country", "hip-hop", "house", "power-pop", "classical"]
+genres = ["afrobeat", "ambient", "anime", "bluegrass", "blues", "bossanova"]
 
 for genre in genres:
     print(genre)
