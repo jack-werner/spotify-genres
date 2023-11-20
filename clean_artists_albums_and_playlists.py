@@ -1,9 +1,7 @@
 import pandas as pd
-import json
-import os
 import file_reader
 
-OUTPUT_PATH = "retry_outputs"
+OUTPUT_PATH = "retry_outputs_copy"
 
 # get artist data
 artists = file_reader.read_files(OUTPUT_PATH, "artists")
@@ -25,7 +23,7 @@ df_artists = df_artists.rename(
 # cast datatypes and save artists
 df_artists = df_artists.astype(
     {
-        "id": str,
+        "id": pd.StringDtype(),
         "name": str,
         "popularity": int,
         "followers": int,
@@ -60,19 +58,23 @@ df_albums = df_albums[album_columns]
 df_albums = df_albums.drop_duplicates()
 
 
+df_albums["release_date"] = df_albums["release_date"].replace("0000", None)
 df_albums["release_date"] = df_albums.apply(file_reader.handle_dates, axis=1)
-df_albums = df_albums.drop(columns=["release_date_precision"])
 
 # cast dates to dates and other columns to better datatypes and save albums
-df_albums.astype(
+df_albums = df_albums.astype(
     {
-        "id": str,
-        "name": str,
-        "type": str,
-        "release_date": "datetime64",
-        "label": str,
+        "id": pd.StringDtype(),
+        "name": pd.StringDtype(),
+        "type": pd.StringDtype(),
+        "label": pd.StringDtype(),
     }
 )
+df_albums["release_date"] = pd.to_datetime(df_albums["release_date"])
+df_albums = df_albums.drop(columns=["release_date_precision"])
+
+df_albums.to_parquet("albums.parquet", index=False)
+
 
 # handle playlists
 playlists = file_reader.read_files(OUTPUT_PATH, "playlists")
@@ -91,7 +93,9 @@ df_playlist_genre = (
 df_playlist_genre.columns = ["playlist_id", "genre_id"]
 
 # save playlist_genre table
-df_playlist_genre.astype({"playlist_id": str, "genre_id": str})
+df_playlist_genre = df_playlist_genre.astype(
+    {"playlist_id": pd.StringDtype(), "genre_id": pd.StringDtype()}
+)
 df_playlist_genre.to_parquet("playlist_genre.parquet", index=False)
 
 # drop genre from playlist and drop duplicates
@@ -100,9 +104,9 @@ df_playlists = df_playlists.drop(columns=["genre"]).drop_duplicates()
 # save playlists
 df_playlists.astype(
     {
-        "id": str,
-        "name": str,
-        "description": str,
+        "id": pd.StringDtype(),
+        "name": pd.StringDtype(),
+        "description": pd.StringDtype(),
     }
 )
 df_playlists.to_parquet("playlists.parquet", index=False)

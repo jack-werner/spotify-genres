@@ -21,9 +21,11 @@ def read_files(parent_directory: str, file_name: str):
 
 
 def handle_dates(row):
-    if row["release_date_precision"] == "year":
-        return f"{row['release_date']}-01-01"
-    elif row["release_date_precision"] == "month":
-        return f"{row['release_date']}-01"
-    else:
-        return row["release_date"]
+    if row["release_date"]:
+        if row["release_date_precision"] == "year":
+            return f"{row['release_date']}-01-01"
+        elif row["release_date_precision"] == "month":
+            return f"{row['release_date']}-01"
+        else:
+            return row["release_date"]
+    return None
