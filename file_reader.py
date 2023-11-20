@@ -11,9 +11,12 @@ def read_files(parent_directory: str, file_name: str):
         if os.path.isdir(os.path.join(parent_directory, entry))
     ]
     for directory in directories:
-        path = f"{parent_directory}/{directory}/{file_name}.json"
-        with open(path, encoding="utf-8") as file:
-            content += json.load(file)
+        try:
+            path = f"{parent_directory}/{directory}/{file_name}.json"
+            with open(path, encoding="utf-8") as file:
+                content += json.load(file)
+        except FileNotFoundError:
+            print(f"File: '{path}' not found, continuing.")
     return content
 
 
