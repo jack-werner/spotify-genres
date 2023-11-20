@@ -6,6 +6,8 @@ import os
 import time
 import logging
 from typing import Callable
+import json
+import random
 
 # dotenv.load_dotenv()
 
@@ -221,6 +223,30 @@ class SpotifyExtractor:
 
         self.logger = logging.getLogger(__name__)
 
+        self.clients = self.load_clients("credentials.json")
+        self.picked_clients = set()
+
+    def load_clients(self, json_file_path):
+        with open(json_file_path, "r") as file:
+            return json.load(file)
+
+    def pick_random_client(self):
+        available_clients = [
+            client
+            for client in self.clients
+            if client["client_id"] not in self.picked_clients
+        ]
+
+        if not available_clients:
+            print("All clients have been picked.")
+            return None
+
+        selected_client = random.choice(available_clients)
+        self.picked_clients.add(selected_client["client_id"])
+
+        self.client_id = selected_client.get("client_id")
+        self.client_secret = selected_client.get("client_secret")
+
     def client_credentials_auth(self, timeout=5) -> requests.Response:
         """"""
         url = "https://accounts.spotify.com/api/token"
@@ -338,27 +364,44 @@ class SpotifyExtractor:
 
     # helper method for handling rate limiting, token refresh, and 404 errors
     def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
-        response = requester(*args, **kwargs)
-        while not response.ok:
-            if response.status_code == 429:
-                print("rate limit")
-                wait_time = response.headers.get("retry-after")
-                print("waiting", wait_time)
-                time.sleep(1 + int(wait_time))
-            elif response.status_code == 401:
-                print("401 Error, refreshing token")
-                auth = self.client_credentials_auth()
-                if auth.ok:
-                    self.token = auth.json().get("access_token")
-                else:
-                    raise requests.exceptions.HTTPError(auth.text)
-            elif response.status_code == 404:
-                return None
-            else:
-                raise requests.exceptions.HTTPError(response.text)
+        try:
             response = requester(*args, **kwargs)
+            while not response.ok:
+                if response.status_code == 429:
+                    print("rate limit")
+                    wait_time = response.headers.get("retry-after")
+                    if (
+                        len(self.picked_clients) < len(self.clients)
+                    ) and wait_time > 500:
+                        print("getting new client")
+                        self.pick_random_client()
+                        self.client_credentials_auth()
+                    else:
+                        # wait
+                        print("waiting", wait_time)
+                        time.sleep(1 + int(wait_time))
+                elif response.status_code == 401:
+                    print("401 Error, refreshing token")
+                    auth = self.client_credentials_auth()
+                    if auth.ok:
+                        self.token = auth.json().get("access_token")
+                    else:
+                        raise requests.exceptions.HTTPError(auth.text)
+                elif response.status_code == 404:
+                    print("404, continuing")
+                    return None
+                else:
+                    raise requests.exceptions.HTTPError(response.text)
+                response = requester(*args, **kwargs)
 
-        return response.json()
+            return response.json()
+        except requests.exceptions.ConnectionError:
+            print("Connection reset or something, getting new client, waiting")
+            time.sleep(10)
+            self.pick_random_client()
+            self.client_credentials_auth()
+            dummy = {}
+            return dummy
 
     # methods that handle iterating through the various endpoints
     def get_all_playlists(self, genre) -> list[dict]:
@@ -369,7 +412,12 @@ class SpotifyExtractor:
         return playlists
 
     def get_all_songs_from_playlist(
-        self, playlist_id: str, total: int, limit: int = 50, timeout=5
+        self,
+        playlist_id: str,
+        total: int,
+        limit: int = 50,
+        delay: int | float = 0.5,
+        timeout=5,
     ) -> list[dict]:
         playlist_items = []
         offset = 0
@@ -387,6 +435,7 @@ class SpotifyExtractor:
             )
             playlist_items += track_results.get("items")
             offset += limit
+            time.sleep(delay)
 
         playlist_tracks = [i.get("track") for i in playlist_items if i.get("track")]
 
@@ -399,6 +448,7 @@ class SpotifyExtractor:
         for i, playlist in enumerate(playlists):
             self.logger.info("Playlist: %s", i)
             print("Playlist: %s" % i)
+            print(playlist.get("name"))
             playlist_id = playlist.get("id")
             number_tracks = playlist.get("tracks").get("total")
             tracks += self.get_all_songs_from_playlist(
@@ -407,7 +457,9 @@ class SpotifyExtractor:
             time.sleep(delay)
         return tracks
 
-    def get_all_track_features(self, track_ids, limit: int = 100) -> list[dict]:
+    def get_all_track_features(
+        self, track_ids, limit: int = 100, delay: int | float = 0.5
+    ) -> list[dict]:
         offset = 0
         total = len(track_ids)
         track_features = []
@@ -419,12 +471,15 @@ class SpotifyExtractor:
             id_chunk = track_ids[offset : offset + limit]
             if id_chunk:
                 features = self.handle_requests(self.get_audio_features, id_chunk)
-                track_features += features
+                track_features += features.get("audio_features")
             offset += limit
+            time.sleep(delay)
 
         return track_features
 
-    def get_all_artists(self, artist_ids: list[str], limit: int = 50) -> list[dict]:
+    def get_all_artists(
+        self, artist_ids: list[str], limit: int = 50, delay: int | float = 0.5
+    ) -> list[dict]:
         offset = 0
         total = len(artist_ids)
         artists = []
@@ -439,10 +494,14 @@ class SpotifyExtractor:
                 artists_result = self.handle_requests(self.get_artists, id_chunk)
                 artists += artists_result.get("artists")
             offset += limit
+            print(artists[-1].get("name"))
+            time.sleep(delay)
 
         return artists
 
-    def get_all_albums(self, album_ids: list[str], limit: int = 20) -> list[dict]:
+    def get_all_albums(
+        self, album_ids: list[str], limit: int = 20, delay: int | float = 0.5
+    ) -> list[dict]:
         offset = 0
         total = len(album_ids)
         albums = []
@@ -457,5 +516,7 @@ class SpotifyExtractor:
                 album_chunk = self.handle_requests(self.get_albums, id_chunk)
                 albums += album_chunk["albums"]
             offset += limit
+            print(albums[-1].get("name"))
+            time.sleep(delay)
 
         return albums
