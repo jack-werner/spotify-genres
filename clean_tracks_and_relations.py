@@ -33,7 +33,9 @@ df_tracks_exploded.columns = ["artist_id", "track_id"]
 tracks_artists = df_tracks_exploded.drop_duplicates().dropna()
 
 # cast and save track-artists
-tracks_artists = tracks_artists.astype({"track_id": str, "artist_id": str})
+tracks_artists = tracks_artists.astype(
+    {"track_id": pd.StringDtype(), "artist_id": pd.StringDtype()}
+)
 tracks_artists.to_parquet("track_artist.parquet", index=False)
 
 # get tracks_playlists relationship
@@ -42,7 +44,9 @@ df_tracks_playlists.columns = ["track_id", "playlist_id"]
 
 
 # save tracks_playlists
-df_tracks_playlists = df_tracks_playlists.astype({"track_id": str, "playlist_id": str})
+df_tracks_playlists = df_tracks_playlists.astype(
+    {"track_id": pd.StringDtype(), "playlist_id": pd.StringDtype()}
+)
 df_tracks_playlists.to_parquet("track_playlist.parquet", index=False)
 
 # drop artist id and playlist id now that we have the edge table? and drop duplicates for tracks
@@ -79,7 +83,7 @@ df_tracks_and_features = df_tracks.merge(df_features, on="id").drop_duplicates()
 # save tracks with features
 df_tracks_and_features = df_tracks_and_features.astype(
     {
-        "id": str,
+        "id": pd.StringDtype(),
         "acousticness": float,
         "danceability": float,
         "energy": float,

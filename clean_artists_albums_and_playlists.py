@@ -24,7 +24,7 @@ df_artists = df_artists.rename(
 df_artists = df_artists.astype(
     {
         "id": pd.StringDtype(),
-        "name": str,
+        "name": pd.StringDtype(),
         "popularity": int,
         "followers": int,
     }
