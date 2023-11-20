@@ -363,6 +363,46 @@ class SpotifyExtractor:
         return response
 
     # helper method for handling rate limiting, token refresh, and 404 errors
+    # def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
+    #     try:
+    #         response = requester(*args, **kwargs)
+    #         while not response.ok:
+    #             if response.status_code == 429:
+    #                 print("rate limit")
+    #                 wait_time = response.headers.get("retry-after")
+    #                 if (
+    #                     len(self.picked_clients) < len(self.clients)
+    #                 ) and wait_time > 500:
+    #                     print("getting new client")
+    #                     self.pick_random_client()
+    #                     self.client_credentials_auth()
+    #                 else:
+    #                     # wait
+    #                     print("waiting", wait_time)
+    #                     time.sleep(1 + int(wait_time))
+    #             elif response.status_code == 401:
+    #                 print("401 Error, refreshing token")
+    #                 auth = self.client_credentials_auth()
+    #                 if auth.ok:
+    #                     self.token = auth.json().get("access_token")
+    #                 else:
+    #                     raise requests.exceptions.HTTPError(auth.text)
+    #             elif response.status_code == 404:
+    #                 print("404, continuing")
+    #                 return None
+    #             else:
+    #                 raise requests.exceptions.HTTPError(response.text)
+    #             response = requester(*args, **kwargs)
+
+    #         return response.json()
+    #     except requests.exceptions.ConnectionError:
+    #         print("Connection reset or something, getting new client, waiting")
+    #         time.sleep(10)
+    #         self.pick_random_client()
+    #         self.client_credentials_auth()
+    #         dummy = {}
+    #         return dummy
+
     def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
         try:
             response = requester(*args, **kwargs)
@@ -400,8 +440,7 @@ class SpotifyExtractor:
             time.sleep(10)
             self.pick_random_client()
             self.client_credentials_auth()
-            dummy = {}
-            return dummy
+            return None
 
     # methods that handle iterating through the various endpoints
     def get_all_playlists(self, genre) -> list[dict]:
@@ -433,7 +472,8 @@ class SpotifyExtractor:
                 offset=offset,
                 timeout=timeout,
             )
-            playlist_items += track_results.get("items")
+            if track_results:
+                playlist_items += track_results.get("items")
             offset += limit
             time.sleep(delay)
 
@@ -445,16 +485,20 @@ class SpotifyExtractor:
         self, playlists: list[dict], limit: int = 50, delay: int | float = 0.5
     ) -> list[dict]:
         tracks = []
-        for i, playlist in enumerate(playlists):
-            self.logger.info("Playlist: %s", i)
-            print("Playlist: %s" % i)
-            print(playlist.get("name"))
-            playlist_id = playlist.get("id")
-            number_tracks = playlist.get("tracks").get("total")
-            tracks += self.get_all_songs_from_playlist(
-                playlist_id, number_tracks, limit=limit
-            )
-            time.sleep(delay)
+        try:
+            for i, playlist in enumerate(playlists):
+                self.logger.info("Playlist: %s", i)
+                print("Playlist: %s" % i)
+                print(playlist.get("name"))
+                playlist_id = playlist.get("id")
+                number_tracks = playlist.get("tracks").get("total")
+                tracks += self.get_all_songs_from_playlist(
+                    playlist_id, number_tracks, limit=limit
+                )
+                time.sleep(delay)
+        except Exception as e:
+            print(f"Exception occurred, saving progress, {str(e)}")
+
         return tracks
 
     def get_all_track_features(
@@ -465,15 +509,20 @@ class SpotifyExtractor:
         track_features = []
         self.logger.info("Total Songs: %s", total)
         print("Total Songs: %s" % total)
-        while offset < total:
-            self.logger.info("Offset: %s", offset)
-            print("Offset: %s" % offset)
-            id_chunk = track_ids[offset : offset + limit]
-            if id_chunk:
-                features = self.handle_requests(self.get_audio_features, id_chunk)
-                track_features += features.get("audio_features")
-            offset += limit
-            time.sleep(delay)
+        try:
+            while offset < total:
+                self.logger.info("Offset: %s", offset)
+                print("Offset: %s" % offset)
+                id_chunk = track_ids[offset : offset + limit]
+                if id_chunk:
+                    features = self.handle_requests(self.get_audio_features, id_chunk)
+                    if features:
+                        track_features += features.get("audio_features")
+                offset += limit
+                time.sleep(delay)
+        except Exception as e:
+            print(f"Exception occurred, saving progress, {str(e)}")
+            return track_features
 
         return track_features
 
@@ -486,16 +535,21 @@ class SpotifyExtractor:
 
         self.logger.info("Total Artists: %s", total)
         print("Total Artists: %s" % total)
-        while offset < total:
-            self.logger.info("Offset: %s", offset)
-            print("Offset: %s" % offset)
-            id_chunk = artist_ids[offset : offset + limit]
-            if id_chunk:
-                artists_result = self.handle_requests(self.get_artists, id_chunk)
-                artists += artists_result.get("artists")
-            offset += limit
-            print(artists[-1].get("name"))
-            time.sleep(delay)
+        try:
+            while offset < total:
+                self.logger.info("Offset: %s", offset)
+                print("Offset: %s" % offset)
+                id_chunk = artist_ids[offset : offset + limit]
+                if id_chunk:
+                    artists_result = self.handle_requests(self.get_artists, id_chunk)
+                    if artists_result:
+                        artists += artists_result.get("artists")
+                offset += limit
+                print(artists[-1].get("name"))
+                time.sleep(delay)
+        except Exception as e:
+            print(f"Exception occurred, saving progress, {str(e)}")
+            return artists
 
         return artists
 
@@ -508,15 +562,20 @@ class SpotifyExtractor:
 
         self.logger.info("Total Albums: %s", total)
         print("Total Albums: %s" % total)
-        while offset < total:
-            self.logger.info("Offset: %s", offset)
-            print("Offset: %s" % offset)
-            id_chunk = album_ids[offset : offset + limit]
-            if id_chunk:
-                album_chunk = self.handle_requests(self.get_albums, id_chunk)
-                albums += album_chunk["albums"]
-            offset += limit
-            print(albums[-1].get("name"))
-            time.sleep(delay)
+        try:
+            while offset < total:
+                self.logger.info("Offset: %s", offset)
+                print("Offset: %s" % offset)
+                id_chunk = album_ids[offset : offset + limit]
+                if id_chunk:
+                    album_chunk = self.handle_requests(self.get_albums, id_chunk)
+                    if album_chunk:
+                        albums += album_chunk["albums"]
+                offset += limit
+                print(albums[-1].get("name"))
+                time.sleep(delay)
+        except Exception as e:
+            print(f"Exception occurred, saving progress, {str(e)}")
+            return albums
 
         return albums
