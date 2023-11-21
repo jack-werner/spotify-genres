@@ -1,12 +1,17 @@
 import pandas as pd
 import file_reader
+import time
 
-OUTPUT_PATH = "retry_outputs_copy"
+INPUT_PATH = "retry_outputs"
+OUTPUT_PATH = "normalized"
 
 # get artist data
-artists = file_reader.read_files(OUTPUT_PATH, "artists")
-
+start = time.perf_counter()
+print("reading artists")
+artists = file_reader.read_files(INPUT_PATH, "artists")
 df_artists = pd.json_normalize(artists)
+now = time.perf_counter()
+print("done reading artists", now)
 
 artist_columns = [
     "id",
@@ -25,26 +30,28 @@ df_artists = df_artists.astype(
     {
         "id": pd.StringDtype(),
         "name": pd.StringDtype(),
-        "popularity": int,
-        "followers": int,
+        "popularity": "Int64",
+        "followers": "Int64",
     }
 )
-df_artists.to_parquet("artists.parquet", index=False)
+df_artists.to_parquet(f"{OUTPUT_PATH}/artists.parquet", index=False)
 
 
 # get album data
-albums = file_reader.read_files(OUTPUT_PATH, "albums")
+now = time.perf_counter()
+print("reading albums", now)
+albums = file_reader.read_files(INPUT_PATH, "albums")
 df_albums = pd.json_normalize(albums)
+now = time.perf_counter()
+print("done reading albums", now)
 
 # explode artists to get album-artists relationship for collabs and compilations
 df_albums_exploded = df_albums[["artists", "id"]].explode(column="artists")
-artist_ids = (
-    df_albums_exploded["artists"].apply(lambda x: x.get("id")).reset_index(drop=True)
-)
+artist_ids = df_albums_exploded["artists"].apply(lambda x: x.get("id"))
 df_albums_exploded["artists"] = artist_ids
 df_albums_exploded.columns = ["artist_id", "album_id"]
 album_artists = df_albums_exploded.drop_duplicates().dropna()
-album_artists.to_parquet("album_artists.parquet", index=False)
+album_artists.to_parquet(f"{OUTPUT_PATH}/album_artists.parquet", index=False)
 
 album_columns = [
     "id",
@@ -74,12 +81,16 @@ df_albums = df_albums.astype(
 df_albums["release_date"] = pd.to_datetime(df_albums["release_date"])
 df_albums = df_albums.drop(columns=["release_date_precision"])
 
-df_albums.to_parquet("albums.parquet", index=False)
+df_albums.to_parquet(f"{OUTPUT_PATH}/albums.parquet", index=False)
 
 
 # handle playlists
-playlists = file_reader.read_files(OUTPUT_PATH, "playlists")
+now = time.perf_counter()
+print("reading playlists", now)
+playlists = file_reader.read_files(INPUT_PATH, "playlists")
 df_playlists = pd.json_normalize(playlists)
+now = time.perf_counter()
+print("done reading playlists", now)
 playlist_columns = ["id", "name", "description", "genre"]
 df_playlists = df_playlists[playlist_columns]
 
@@ -97,7 +108,7 @@ df_playlist_genre.columns = ["playlist_id", "genre_id"]
 df_playlist_genre = df_playlist_genre.astype(
     {"playlist_id": pd.StringDtype(), "genre_id": pd.StringDtype()}
 )
-df_playlist_genre.to_parquet("playlist_genre.parquet", index=False)
+df_playlist_genre.to_parquet(f"{OUTPUT_PATH}/playlist_genre.parquet", index=False)
 
 # drop genre from playlist and drop duplicates
 df_playlists = df_playlists.drop(columns=["genre"]).drop_duplicates()
@@ -110,4 +121,7 @@ df_playlists.astype(
         "description": pd.StringDtype(),
     }
 )
-df_playlists.to_parquet("playlists.parquet", index=False)
+df_playlists.to_parquet(f"{OUTPUT_PATH}/playlists.parquet", index=False)
+
+now = time.perf_counter()
+print("done", now)
