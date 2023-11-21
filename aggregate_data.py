@@ -90,7 +90,7 @@ track_counts = (
 # track_counts.sort_values(by=['genre_name', 'DistinctCount'], ascending=[True, False])
 sorted_track_counts = track_counts.sort_values(
     by=["genre_name", "count"], ascending=[True, False]
-)
+).reset_index(drop=True)
 
 
 top_songs = (
@@ -107,7 +107,7 @@ top_songs_artists = (
         ["genre_name", "track_name", "artist_name", "count"]
     ]
     .drop_duplicates()
-)
+).reset_index(drop=True)
 
 
 top_songs_artists[top_songs_artists["genre_name"] == "power-pop"]
@@ -115,11 +115,63 @@ top_songs_artists[top_songs_artists["genre_name"] == "alt-rock"]
 top_songs_artists[top_songs_artists["genre_name"] == "grunge"]
 top_songs_artists[top_songs_artists["genre_name"] == "dubstep"]
 top_songs_artists[top_songs_artists["genre_name"] == "dub"]
+top_songs_artists[top_songs_artists["genre_name"] == "opera"]
+top_songs_artists[top_songs_artists["genre_name"] == "jazz"]
+top_songs_artists[top_songs_artists["genre_name"] == "anime"]
+top_songs_artists[top_songs_artists["genre_name"] == "pop"].sort_values(
+    "count", ascending=False
+)
 
 
 # get most popular artists per genre
+# artists with the most popular tracks in each genre
+songs_artists = track_counts.shape
+track_counts_with_artists = (
+    track_counts.merge(track_artist, on="track_id")
+    .merge(artists, left_on="artist_id", right_on="id", suffixes=("_track", "_artist"))
+    .rename(columns={"name": "artist_name"})
+    .drop_duplicates()
+)
+
+track_counts_with_artists.shape
+
+track_counts_with_artists.head()
+multiple_appearances = track_counts_with_artists[track_counts_with_artists["count"] > 1]
+
+track_counts_with_artists.columns
+
+sum_count = (
+    multiple_appearances.groupby(["genre_name", "artist_name"])
+    .sum()["count"]
+    .reset_index()
+)
+
+sorted_artists = sum_count.sort_values(
+    by=["genre_name", "count"], ascending=[True, False]
+)
+top_artists = sorted_artists.groupby("genre_name").head(10)
+
+# removing the songs that only show up in one playlist seems to make this better
+top_artists[top_artists["genre_name"] == "power-pop"]
+top_artists[top_artists["genre_name"] == "pop"]
+top_artists[top_artists["genre_name"] == "grunge"]
+top_artists[top_artists["genre_name"] == "classical"]
+top_artists[top_artists["genre_name"] == "dubstep"]
+top_artists[top_artists["genre_name"] == "house"]
+top_artists[top_artists["genre_name"] == "reggae"]
+top_artists[top_artists["genre_name"] == "reggaeton"]
+top_artists[top_artists["genre_name"] == "opera"]
+top_artists[top_artists["genre_name"] == "emo"]
+top_artists[top_artists["genre_name"] == "jazz"]
+top_artists[top_artists["genre_name"] == "garage"]
+top_artists[top_artists["genre_name"] == "edm"]
+top_artists[top_artists["genre_name"] == "goth"]
+top_artists[top_artists["genre_name"] == "country"]
+top_artists[top_artists["genre_name"] == "idm"]
+top_artists[top_artists["genre_name"] == "metal"]
 
 
 # get most popular albums per genre
+
 
 # get avg and variance of each genre

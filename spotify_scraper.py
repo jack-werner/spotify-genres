@@ -168,47 +168,6 @@ class SpotifyExtractor:
         )
         return response
 
-    # helper method for handling rate limiting, token refresh, and 404 errors
-    # def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
-    #     try:
-    #         response = requester(*args, **kwargs)
-    #         while not response.ok:
-    #             if response.status_code == 429:
-    #                 print("rate limit")
-    #                 wait_time = response.headers.get("retry-after")
-    #                 if (
-    #                     len(self.picked_clients) < len(self.clients)
-    #                 ) and wait_time > 500:
-    #                     print("getting new client")
-    #                     self.pick_random_client()
-    #                     self.client_credentials_auth()
-    #                 else:
-    #                     # wait
-    #                     print("waiting", wait_time)
-    #                     time.sleep(1 + int(wait_time))
-    #             elif response.status_code == 401:
-    #                 print("401 Error, refreshing token")
-    #                 auth = self.client_credentials_auth()
-    #                 if auth.ok:
-    #                     self.token = auth.json().get("access_token")
-    #                 else:
-    #                     raise requests.exceptions.HTTPError(auth.text)
-    #             elif response.status_code == 404:
-    #                 print("404, continuing")
-    #                 return None
-    #             else:
-    #                 raise requests.exceptions.HTTPError(response.text)
-    #             response = requester(*args, **kwargs)
-
-    #         return response.json()
-    #     except requests.exceptions.ConnectionError:
-    #         print("Connection reset or something, getting new client, waiting")
-    #         time.sleep(10)
-    #         self.pick_random_client()
-    #         self.client_credentials_auth()
-    #         dummy = {}
-    #         return dummy
-
     def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
         try:
             response = requester(*args, **kwargs)
@@ -318,15 +277,14 @@ class SpotifyExtractor:
                 self.logger.info("Offset: %s", offset)
                 print("Offset: %s" % offset)
                 id_chunk = track_ids[offset : offset + limit]
-                if id_chunk:
-                    features = self.handle_requests(self.get_audio_features, id_chunk)
-                    if features:
-                        track_features += features.get("audio_features")
+                features = self.handle_requests(self.get_audio_features, id_chunk)
+                if features:
+                    track_features += features.get("audio_features")
                 offset += limit
                 time.sleep(delay)
         except Exception as e:
             print(f"Exception occurred, saving progress, {str(e)}")
-            self.failed_ids["track_features"] += id_chunk
+            self.failed_ids["track_features"] += track_ids[offset:]
             return track_features
 
         return track_features
