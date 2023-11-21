@@ -44,6 +44,7 @@ artist_ids = (
 df_albums_exploded["artists"] = artist_ids
 df_albums_exploded.columns = ["artist_id", "album_id"]
 album_artists = df_albums_exploded.drop_duplicates().dropna()
+album_artists.to_parquet("album_artists.parquet", index=False)
 
 album_columns = [
     "id",
