@@ -4,6 +4,9 @@ import json
 from spotify_scraper import SpotifyExtractor
 
 
+OUPTUT_PATH = "retry_outputs"
+
+
 def save_file(content: list[dict], filename: str, genre: str):
     output_path = f"retry_outputs/{genre}/"
     if not os.path.exists(output_path):
@@ -25,6 +28,53 @@ done_genres = [
     entry for entry in entries if os.path.isdir(os.path.join(parent_directory, entry))
 ]
 genres = [i for i in genres if i not in done_genres]
+genres
+
+# need
+"""
+Classical albums 
+Country tracks might be messed up - this means country needs to be redone
+malay albums
+metal artist, albums
+acoustic artists
+world music artists
+"""
+
+retries = {"classical": ["albums"], "malay": ["albums"], "metal": [""]}
+
+retry_artists = ["metal", "acoustic", "world-music"]
+retry_albums = ["classical", "malay", "metal"]
+
+
+for genre in retry_artists:
+    print(genre)
+    # read tracks
+    with open(f"{OUPTUT_PATH}/{genre}/tracks.json") as file:
+        tracks = json.load(file)
+    # get artist_ids
+    artist_lists = [i.get("artists") for i in tracks if i.get("artists")]
+    artist_ids = []
+    for artist_list in artist_lists:
+        artists_ids = [i.get("id") for i in artist_list if i.get("id")]
+        artist_ids += artists_ids
+    artist_ids = list(set(artist_ids))
+    # get artists
+    artists = spotify.get_all_artists(artist_ids, limit=50)
+    save_file(artists, "artists", genre)
+
+for genre in retry_albums:
+    print(genre)
+    # read tracks
+    with open(f"{OUPTUT_PATH}/{genre}/tracks.json") as file:
+        tracks = json.load(file)
+    # get album_ids
+    accessed_albums = [i.get("album") for i in tracks if i.get("album")]
+    album_ids = [i.get("id") for i in accessed_albums if i.get("id")]
+    album_ids = list(set(album_ids))
+    # get albums
+    albums = spotify.get_all_albums(album_ids, limit=20)
+    save_file(albums, "albums", genre)
+
 
 # for genre in genres:
 for genre in genres:
