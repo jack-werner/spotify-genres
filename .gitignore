@@ -13,3 +13,4 @@ retry_outputs_copy/
 __pycache__
 retry_outputs
 *.parquet
+failed_ids.txt

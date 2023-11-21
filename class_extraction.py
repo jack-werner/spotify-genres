@@ -26,11 +26,9 @@ done_genres = [
 ]
 genres = [i for i in genres if i not in done_genres]
 
-# len(genres)
-print(genres[1:])
+######
 print(genres)
 len(genres)
-genres = genres[6:]
 
 
 # for genre in genres:

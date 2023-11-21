@@ -68,7 +68,11 @@ track_counts = (
 sorted_track_counts = track_counts.sort_values(
     by=["genre_name", "track_id"], ascending=[True, False]
 )
-top_3_songs = sorted_track_counts.groupby(by=["genre_name", "track_name"]).head(3)
+top_3_songs = (
+    sorted_track_counts.groupby(by=["genre_name", "track_name"])
+    .head(3)
+    .reset_index(drop=True)
+)
 
 
 # get most popular artists per genre

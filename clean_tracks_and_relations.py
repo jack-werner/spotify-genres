@@ -1,9 +1,7 @@
 import pandas as pd
-import json
-import os
 import file_reader
 
-OUTPUT_PATH = "retry_outputs_copy"
+OUTPUT_PATH = "retry_outputs"
 
 # process tracks
 tracks = file_reader.read_files(OUTPUT_PATH, "tracks")
