@@ -17,3 +17,5 @@ failed_ids.txt
 gold/
 visualizations/
 normalized/
+bronze/
+silver/
