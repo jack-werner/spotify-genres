@@ -210,7 +210,7 @@ class SpotifyExtractor:
             print("Connection error, getting new client. Pausing for 10 seconds.")
             time.sleep(10)
             self.pick_random_client()
-            self.client_credentials_auth()
+            self.refresh_token()
             return None
 
     # methods that handle iterating through the various endpoints
@@ -266,7 +266,6 @@ class SpotifyExtractor:
         except Exception as e:
             print(f"Exception occurred, saving progress, {str(e)}")
             self.failed_ids["playlists"] += playlist_id
-            return tracks
 
         return tracks
 
@@ -291,7 +290,6 @@ class SpotifyExtractor:
         except Exception as e:
             print(f"Exception occurred, saving progress, {str(e)}")
             self.failed_ids["track_features"] += track_ids[offset:]
-            return track_features
 
         return track_features
 
@@ -319,7 +317,6 @@ class SpotifyExtractor:
         except Exception as e:
             print(f"Exception occurred, saving progress, {str(e)}")
             self.failed_ids["artists"] += id_chunk
-            return artists
 
         return artists
 
@@ -347,6 +344,5 @@ class SpotifyExtractor:
         except Exception as e:
             print(f"Exception occurred, saving progress, {str(e)}")
             self.failed_ids["albums"] += id_chunk
-            return albums
 
         return albums
