@@ -3,7 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # import all data
-INPUT_PATH = "normalized"
+INPUT_PATH = "silver"
 
 genres = pd.read_csv("genres.csv")
 

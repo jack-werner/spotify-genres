@@ -3,7 +3,7 @@ import os
 import json
 from spotify_scraper import SpotifyExtractor
 
-OUTPUT_PATH = "outputs"
+OUTPUT_PATH = "bronze"
 
 
 def save_file(content: list[dict], filename: str, genre: str):
