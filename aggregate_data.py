@@ -249,7 +249,7 @@ top_albums[top_albums["genre_name"] == "blues"]
 # join artists
 top_albums_artists = (
     top_albums.merge(album_artist, on="album_id")
-    .merge(artists_df, left_on="artist_id", right_on="id")
+    .merge(artists, left_on="artist_id", right_on="id")
     .rename(columns={"name": "artist_name"})[
         ["genre_name", "album_name", "artist_name", "total_count"]
     ]
@@ -268,13 +268,15 @@ top_albums_artists[top_albums_artists["genre_name"] == "alt-rock"]
 top_albums_artists[top_albums_artists["genre_name"] == "grunge"]
 
 
+top_albums_artists.to_csv("gold/top_20_albums.csv", index=False)
+
 ########
-album_artist[album_artist["album_id"] == "2guirTSEqLizK7j9i1MTTZ"]
+# album_artist[album_artist["album_id"] == "2guirTSEqLizK7j9i1MTTZ"]
 
 top_albums.shape
 album_artist.shape
 
-top_albums_artists = top_albums_artists.drop_duplicates()
+# top_albums_artists = top_albums_artists.drop_duplicates()
 
 
 ########
