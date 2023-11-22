@@ -2,8 +2,8 @@ import pandas as pd
 import file_reader
 import time
 
-INPUT_PATH = "retry_outputs"
-OUTPUT_PATH = "normalized"
+INPUT_PATH = "bronze"
+OUTPUT_PATH = "silver"
 
 # get artist data
 start = time.perf_counter()
