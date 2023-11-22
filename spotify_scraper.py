@@ -168,32 +168,36 @@ class SpotifyExtractor:
         )
         return response
 
+    def handle_rate_limit(self, response: requests.Response):
+        print("rate limit")
+        wait_time = response.headers.get("retry-after")
+        # TODO -- change the structure of the picked_clients to be a
+        # queue and when picked clients is full just take the last one
+        if (len(self.picked_clients) < len(self.clients)) and wait_time > 500:
+            print("getting new client")
+            self.pick_random_client()
+            self.client_credentials_auth()
+        else:
+            # wait
+            print("waiting", wait_time)
+            time.sleep(1 + int(wait_time))
+
+    def refresh_token(self):
+        print("401 Error, refreshing token")
+        auth = self.client_credentials_auth()
+        if auth.ok:
+            self.token = auth.json().get("access_token")
+        else:
+            raise requests.exceptions.HTTPError(auth.text)
+
     def handle_requests(self, requester: Callable, *args, **kwargs) -> dict:
         try:
             response = requester(*args, **kwargs)
             while not response.ok:
                 if response.status_code == 429:
-                    print("rate limit")
-                    wait_time = response.headers.get("retry-after")
-                    # TODO -- change the structure of the picked_clients to be a
-                    # queue and when picked clients is full just take the last one
-                    if (
-                        len(self.picked_clients) < len(self.clients)
-                    ) and wait_time > 500:
-                        print("getting new client")
-                        self.pick_random_client()
-                        self.client_credentials_auth()
-                    else:
-                        # wait
-                        print("waiting", wait_time)
-                        time.sleep(1 + int(wait_time))
+                    self.handle_rate_limit(response)
                 elif response.status_code == 401:
-                    print("401 Error, refreshing token")
-                    auth = self.client_credentials_auth()
-                    if auth.ok:
-                        self.token = auth.json().get("access_token")
-                    else:
-                        raise requests.exceptions.HTTPError(auth.text)
+                    self.refresh_token()
                 elif response.status_code == 404:
                     print("404, continuing")
                     return None
@@ -203,7 +207,7 @@ class SpotifyExtractor:
 
             return response.json()
         except requests.exceptions.ConnectionError:
-            print("Connection reset or something, getting new client, waiting")
+            print("Connection error, getting new client. Pausing for 10 seconds.")
             time.sleep(10)
             self.pick_random_client()
             self.client_credentials_auth()
