@@ -3,9 +3,11 @@ import os
 import json
 from spotify_scraper import SpotifyExtractor
 
+OUTPUT_PATH = "outputs"
+
 
 def save_file(content: list[dict], filename: str, genre: str):
-    output_path = f"retry_outputs/{genre}/"
+    output_path = f"{OUTPUT_PATH}/{genre}/"
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     with open(f"{output_path}/{filename}.json", "w", encoding="utf-8") as file:
@@ -14,15 +16,14 @@ def save_file(content: list[dict], filename: str, genre: str):
 
 spotify = SpotifyExtractor(timeout=20)
 
-# get genres,
+# get genres
 df_genres = pd.read_csv("genres.csv")
 genres = df_genres["name"].to_list()
 
 # get genres that have already been processed
-parent_directory = "retry_outputs"
-entries = os.listdir(parent_directory)
+entries = os.listdir(OUTPUT_PATH)
 done_genres = [
-    entry for entry in entries if os.path.isdir(os.path.join(parent_directory, entry))
+    entry for entry in entries if os.path.isdir(os.path.join(OUTPUT_PATH, entry))
 ]
 genres = [i for i in genres if i not in done_genres]
 

@@ -53,6 +53,13 @@ df_albums_exploded.columns = ["artist_id", "album_id"]
 album_artists = df_albums_exploded.drop_duplicates().dropna()
 album_artists.to_parquet(f"{OUTPUT_PATH}/album_artists.parquet", index=False)
 
+
+#############
+# https://open.spotify.com/album/2guirTSEqLizK7j9i1MTTZ?si=DzZg5jvWQLyMl21xs6TJtw
+# album_artists[album_artists['album_id'] == '2guirTSEqLizK7j9i1MTTZ']
+#############
+
+
 album_columns = [
     "id",
     "name",

@@ -14,3 +14,5 @@ __pycache__
 retry_outputs
 *.parquet
 failed_ids.txt
+gold/
+visualizations/

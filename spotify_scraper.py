@@ -175,6 +175,8 @@ class SpotifyExtractor:
                 if response.status_code == 429:
                     print("rate limit")
                     wait_time = response.headers.get("retry-after")
+                    # TODO -- change the structure of the picked_clients to be a
+                    # queue and when picked clients is full just take the last one
                     if (
                         len(self.picked_clients) < len(self.clients)
                     ) and wait_time > 500:
